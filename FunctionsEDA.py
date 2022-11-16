@@ -41,7 +41,6 @@ def show_data(data, what=None):
         print('\nUnique values (integer):\n')
         print(data.select_dtypes(['int64']).apply(lambda x: x.unique()))
 
-
 def corr_heatmap(df):
     color_background = '#F5F5F5'
     color_gridlines = '#DCDCDC'
@@ -56,6 +55,64 @@ def corr_heatmap(df):
     fig.update_xaxes(linecolor=color_gridlines)
     return(fig)
 
+def quantitative_eda(df, stim_vec, imp_vec):
+    color_background = '#F5F5F5'
+    color_gridlines = '#DCDCDC'
+    colors_in_use = [
+        '#2C3E50', '#537EA2', '#858F84', '#42A593',
+        '#873E23', '#CFD1A1', '#6A744F', '#BDBDC5',
+        '#7EA253', '#EDB676', '#C26D40'
+    ]+px.colors.qualitative.Safe
+
+    data_business_eda = pd.DataFrame(dict(
+        cols = df.columns.tolist(),
+        stim = stim_vec,
+        imp = imp_vec
+    ))
+    
+    data_business_eda['imp'] = data_business_eda['imp'].replace(
+        {'h':'high', 'l':'low', 'm':'medium', 'n':'none/explainable'}
+    )
+    data_business_eda['stim'] = data_business_eda['stim'].replace(
+        {'d':'distimulant', 's':'stimulant', 'm':'mixed', 'n':'none/explainable'}
+    )
+
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(x=data_business_eda['imp']))
+    fig.update_traces(
+            marker_color=colors_in_use,
+            marker_line_width=1.5,
+            opacity=0.8
+    )
+    fig.update_layout(
+            xaxis_type='category',
+            xaxis_title='Variable importance',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+    )
+    fig.update_yaxes(gridcolor=color_gridlines)
+    fig.update_xaxes(linecolor=color_gridlines)
+
+    fig2 = go.Figure()
+    fig2.add_trace(go.Histogram(x=data_business_eda['stim']))
+    fig2.update_traces(
+            marker_color=colors_in_use,
+            marker_line_width=1.5,
+            opacity=0.8
+    )
+    fig2.update_layout(
+            xaxis_type='category',
+            xaxis_title='Variable type',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+    )
+    fig2.update_yaxes(gridcolor=color_gridlines)
+    fig2.update_xaxes(linecolor=color_gridlines)
+    
+    fig.show()
+    fig2.show()
+    
+    display(data_business_eda.transpose())
 
 def show_plots(df, y_name, vars_subset=None, what=None):
     
@@ -256,7 +313,7 @@ def show_plots(df, y_name, vars_subset=None, what=None):
                 num_dist_vs_y_lst.append(fig)
         else:
             for i in range(0, len(vars_num)):
-                fig = px.violin(df, y=vars_str[i], color=y,
+                fig = px.violin(df, y=vars_num[i], color=y,
                                 color_discrete_sequence=colors_in_use,
                                 box=True, points='outliers')
                 fig.update_traces(opacity=0.8)
@@ -278,3 +335,227 @@ def show_plots(df, y_name, vars_subset=None, what=None):
         num_dist_vs_y = num_dist_vs_y_lst
     )
     return(final_dict)
+
+
+def show_plots_single(df, y_name, vars_subset=None):
+    
+    y = df.loc[:, y_name].to_numpy()
+    df = df.drop(columns=[y_name])
+    
+    if vars_subset is None:
+        vars_subset = df.columns.tolist()
+        
+    color_background = '#F5F5F5'
+    color_gridlines = '#DCDCDC'
+    colors_in_use = [
+        '#2C3E50', '#537EA2', '#858F84', '#42A593',
+        '#873E23', '#CFD1A1', '#6A744F', '#BDBDC5',
+        '#7EA253', '#EDB676', '#C26D40'
+    ]+px.colors.qualitative.Safe
+    
+    dtypes_num = ['int64', 'int32', 'int16', 'float64', 'float32', 'float16']
+    dtypes_str = ['object', 'category']
+    vars_num = df.loc[:, vars_subset].select_dtypes(include=dtypes_num).columns
+    vars_str = df.loc[:, vars_subset].select_dtypes(include=dtypes_str).columns
+    
+    
+    # single plot, all categorical #########################################################
+    fig = go.Figure()
+    for i in range(0, len(vars_str)):
+        fig.add_trace(go.Histogram(x=df.loc[:, vars_str[i]], 
+                                   name=vars_str[i],
+                                   showlegend=True))
+        fig.update_traces(
+            marker_color=colors_in_use,
+            marker_line_width=1.5,
+            opacity=0.8
+        )
+        fig.update_layout(
+            xaxis_type='category',
+            xaxis_title='',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+        fig.update_yaxes(gridcolor=color_gridlines)
+        fig.update_xaxes(linecolor=color_gridlines)
+    
+    if len(fig['data']) % 4 == 0:
+        dim_1 = int(len(fig['data'])/4)
+    else:
+        dim_1 = int(len(fig['data'])/4)+1
+    dim_2 = 4
+    
+    fig2 = make_subplots(rows=dim_1, cols=dim_2)
+    
+    for i in range(dim_2):
+        for j in range(dim_1):
+            if j+(i*dim_1) >= len(fig['data']):
+                continue
+            fig2.append_trace(fig['data'][j+(i*dim_1)], j+1, i+1)
+        
+        fig2.update_layout(
+            xaxis_type='category',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+    fig2.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig2.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
+    
+    # single plot, all numerical ############################################################
+    fig3 = go.Figure()
+    for i in range(0, len(vars_num)):
+        fig3.add_trace(go.Violin(
+            y=df.loc[:, vars_num[i]], box_visible=True, meanline_visible=True,
+            marker_color=colors_in_use[0], marker_line_color='rgb(8,48,107)',
+            marker_line_width=1.5, opacity=0.8, 
+            name=vars_num[i], showlegend=True
+        ))
+        fig3.update_layout(
+            xaxis_type='category',
+            xaxis_title='',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+        fig3.update_yaxes(gridcolor=color_gridlines)
+        fig3.update_xaxes(linecolor=color_gridlines)
+    
+    
+    if len(vars_num) % 4 == 0:
+        dim_1 = int(len(fig3['data'])/4)
+    else:
+        dim_1 = int(len(fig3['data'])/4)+1
+    dim_2 = 4
+    
+    fig4 = make_subplots(rows=dim_1, cols=dim_2)
+    for i in range(dim_2):
+        for j in range(dim_1):
+            if j+(i*dim_1) >= len(fig3['data']):
+                continue
+            fig4.append_trace(fig3['data'][j+(i*dim_1)], j+1, i+1)
+        
+        fig4.update_layout(
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+    fig4.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig4.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
+    
+    # all categorical against y ##############################################################
+    fig5 = go.Figure()
+    if y.dtype in dtypes_num:
+        for i in range(0, len(vars_str)):
+            fig5.add_trace(go.Violin(y=y, x=df.loc[:, vars_str[i]],
+                                     box_visible=True, meanline_visible=True,
+                                     name=vars_str[i],
+                                     marker_line_width=1.5, opacity=0.8,
+                                     marker_line_color='rgb(8,48,107)'))
+            fig5.update_layout(xaxis_title=y_name,
+                               showlegend=True,
+                               paper_bgcolor=color_background,
+                               plot_bgcolor=color_background)
+            fig5.update_yaxes(gridcolor=color_gridlines, title='')
+            fig5.update_xaxes(linecolor=color_gridlines)
+    else:
+        for i in range(0, len(vars_str)):
+            fig5.add_trace(go.Histogram(
+                y=y, x=df.loc[:, vars_str[i]], 
+                name=vars_str[i], histfunc="count", 
+                showlegend=True, marker_line_width=1.5,
+                opacity=0.8))
+            fig5.update_layout(
+                xaxis_type='category',
+                xaxis_title='',
+                paper_bgcolor=color_background,
+                plot_bgcolor=color_background
+            )
+            fig5.update_yaxes(gridcolor=color_gridlines)
+            fig5.update_xaxes(linecolor=color_gridlines)
+    
+    
+    if len(fig5['data']) % 4 == 0:
+        dim_1 = int(len(fig5['data'])/4)
+    else:
+        dim_1 = int(len(fig5['data'])/4)+1
+    dim_2 = 4
+    
+    fig6 = make_subplots(rows=dim_1, cols=dim_2)
+    
+    for i in range(dim_2):
+        for j in range(dim_1):
+            if j+(i*dim_1) >= len(fig5['data']):
+                continue
+            fig6.append_trace(fig5['data'][j+(i*dim_1)], j+1, i+1)
+        
+        fig6.update_layout(
+            xaxis_type='category',
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+    fig6.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig6.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
+    # all numerical against y ###################################################################
+    fig7 = go.Figure()
+    if y.dtype in dtypes_num:
+        for i in range(0, len(vars_num)):
+            fig7.add_trace(go.Scatter(
+                x=df[vars_num[i]], y=y,
+                opacity=0.8, name=vars_num[i], mode='markers'
+            ))
+            fig7.update_layout(xaxis_title='',
+                               yaxis_title=vars_num[i],
+                               showlegend=True,
+                               paper_bgcolor=color_background,
+                               plot_bgcolor=color_background)
+            fig7.update_yaxes(gridcolor=color_gridlines, title='')
+            fig7.update_xaxes(linecolor=color_gridlines)
+    else:
+        for i in range(0, len(vars_num)):
+            fig7.add_trace(go.Violin(x=y, y=df.loc[:, vars_num[i]],
+                                     box_visible=True, meanline_visible=True,
+                                     name=vars_str[i],
+                                     marker_line_width=1.5, opacity=0.8,
+                                     marker_line_color='rgb(8,48,107)'))
+            fig7.update_layout(xaxis_title=y_name,
+                               showlegend=True,
+                               paper_bgcolor=color_background,
+                               plot_bgcolor=color_background)
+            fig7.update_yaxes(gridcolor=color_gridlines, title='')
+            fig7.update_xaxes(linecolor=color_gridlines)
+            
+            
+    if len(vars_num) % 4 == 0:
+        dim_1 = int(len(fig7['data'])/4)
+    else:
+        dim_1 = int(len(fig7['data'])/4)+1
+    dim_2 = 4
+    
+    fig8 = make_subplots(rows=dim_1, cols=dim_2)
+    for i in range(dim_2):
+        for j in range(dim_1):
+            if j+(i*dim_1) >= len(fig7['data']):
+                continue
+            fig8.append_trace(fig7['data'][j+(i*dim_1)], j+1, i+1)
+        
+        fig8.update_layout(
+            paper_bgcolor=color_background,
+            plot_bgcolor=color_background
+        )
+    fig8.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig8.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+
+    
+    final_dict = dict(
+        cat_single = fig,
+        cat_split = fig2,
+        num_single = fig3,
+        num_split = fig4,
+        cat_vs_y_single = fig5,
+        cat_vs_y_split = fig6,
+        num_vs_y_single = fig7,
+        num_vs_y_split = fig8
+    )
+    
+    return final_dict
