@@ -559,3 +559,18 @@ def show_plots_single(df, y_name, vars_subset=None):
     )
     
     return final_dict
+
+def show_outliers(X, n_std=3):
+    outliers_dict = {}
+    
+    for col in X.columns.to_list():
+        mean = X[col].mean()
+        sd = X[col].std()
+        X_filtered = X[X[col] > mean+(n_std*sd)]
+        outliers_dict[col] = [
+            X.shape[0]-X[(X[col] <= mean+(n_std*sd))].shape[0],
+            round((X.shape[0]-X[(X[col] <= mean+(n_std*sd))].shape[0])/X.shape[0],3),
+            X_filtered[col].min()
+        ]
+        
+    return(pd.DataFrame(outliers_dict, index=['Count', 'Percentage', 'Min']))
