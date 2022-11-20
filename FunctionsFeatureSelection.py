@@ -57,11 +57,17 @@ def feature_selection(X, y, max_n_features=11):
     ))
     return imp_dict
 
-def show_model_ga_search_cv(model_grid, classifier, name, X, y, cv=3, popsize=20, generations=30):
+def show_model_ga_search_cv(model_grid, classifier, name, X, y,
+                            problem_type='classification', cv=3, popsize=20, generations=30):
+    if problem_type=='classification':
+        scoring = 'accuracy'
+    else:
+        scoring = 'neg_root_mean_squared_error'
+    
     model_grid_search_cv = GASearchCV(
         estimator=classifier,
         cv=cv,
-        #scoring='accuracy',
+        scoring=scoring,
         population_size=popsize,
         generations=generations,
         tournament_size=3,
@@ -78,3 +84,31 @@ def show_model_ga_search_cv(model_grid, classifier, name, X, y, cv=3, popsize=20
     print("\nModel:", name, "\n")
     print("Accuracy:", model_grid_search_cv.best_score_, "\n")
     print("Best params", model_grid_search_cv.best_params_, "\n")
+    
+def show_best_feature_set(features_original, features_centroids, features_selected, y, 
+                          p_type='classification'):
+    model_grid_ga_rf = {
+        'max_depth': Integer(10, 80),
+        'max_features': Integer(1, 7),
+        'min_samples_leaf': Integer(1, 7),
+        'min_samples_split': Integer(2, 10),
+        'n_estimators': Integer(25, 500)#,
+    }
+    
+    print('Original:')
+    show_model_ga_search_cv(
+        model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_original, y,
+        p_type, generations=3
+    )
+    
+    print('Centroids:')
+    show_model_ga_search_cv(
+        model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_centroids, y,
+        p_type, generations=3
+    )
+    
+    print('Features selected:')
+    show_model_ga_search_cv(
+        model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_selected, y,
+        p_type, generations=3
+    )
