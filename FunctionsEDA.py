@@ -7,41 +7,73 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from plotly.subplots import make_subplots
 
-def show_data(data, what=None):
+def show_data(df, what=None):
+    """Shows dataset's descriptive statistics and other important characteristics. 
+    
+    Parameters
+    ----------
+        df : dataset,
+        what : which type of information to show,
+               default=['head', 'shapes', 'col_types', 'nans', 'stats', 'unique_vals'].
+               Available options are:
+               - 'head' : shows 5 first rows of the dataset,
+               - 'shapes' : shows number of rows, columns and rows/columns ratio,
+               - 'col_types' : shows pandas columns types,
+               - 'nans' : shows number of NaNs for each column. Does not count Inf, -Inf,
+               - 'stats' : shows basic statistics ( from data.describe() ),
+               - 'unique_vals' : unique categories for every column in the dataset
+                                 (restricted by the print length).
+        
+    Returns
+    ----------
+        According to the 'what' argument.
+    """
+    
     if what is None:
         what = ['head', 'shapes', 'col_types', 'nans', 'stats', 'unique_vals']
     
     if 'head' in what:
         print('Head:')
-        display(data.head())
+        display(df.head())
         
     if 'shapes' in what:
-        print('\nNrows:', data.shape[0])
-        print('Ncols:', data.shape[1])
-        print('rows/cols ratio:', data.shape[0]/data.shape[1], "\n")
+        print('\nNrows:', df.shape[0])
+        print('Ncols:', df.shape[1])
+        print('rows/cols ratio:', df.shape[0]/df.shape[1], "\n")
         
     if 'col_types' in what:
         print('Col types:')
-        display(pd.DataFrame(data.dtypes).transpose())
-        print('Number of integer columns:', len(data.dtypes[data.dtypes == 'int64']))
-        print('Number of float columns:', len(data.dtypes[data.dtypes == 'float64']))
-        print('Number of string columns:', len(data.dtypes[data.dtypes == 'object']), "\n")
+        display(pd.DataFrame(df.dtypes).transpose())
+        print('Number of integer columns:', len(df.dtypes[df.dtypes == 'int64']))
+        print('Number of float columns:', len(df.dtypes[df.dtypes == 'float64']))
+        print('Number of string columns:', len(df.dtypes[df.dtypes == 'object']), "\n")
         
     if 'nans' in what:
         print('NaNs:')
-        display(pd.DataFrame(data.isna().sum()).transpose())     
+        display(pd.DataFrame(df.isna().sum()).transpose())     
         
     if 'stats' in what:
         print('\nStatistics:')
-        display(data.describe())
+        display(df.describe())
         
     if 'unique_vals' in what:
         print('\nUnique values (object):\n')
-        print(data.select_dtypes(['object']).apply(lambda x: x.unique()))
+        print(df.select_dtypes(['object']).apply(lambda x: x.unique()))
         print('\nUnique values (integer):\n')
-        print(data.select_dtypes(['int64']).apply(lambda x: x.unique()))
+        print(df.select_dtypes(['int64']).apply(lambda x: x.unique()))
 
 def corr_heatmap(df):
+    """Visualizes correlation matrix of all numeric variables.
+    
+    Parameters
+    ----------
+        df : dataset.
+        
+    Returns
+    ----------
+        Heatmap from correlation matrix.
+    """
+    
     color_background = '#F5F5F5'
     color_gridlines = '#DCDCDC'
         
@@ -56,6 +88,24 @@ def corr_heatmap(df):
     return(fig)
 
 def quantitative_eda(df, stim_vec, imp_vec):
+    """Visualizes a summary of Quantitative EDA.
+    
+    Parameters
+    ----------
+        df : dataset,
+        stim_vec : list of stimulant type of each variable in dataset. Accepted types are:
+                   ['d', 's', 'm', 'n'] - (di)stimulant, mixed, none/explainable,
+        stim_vec : list of importance type of each variable in dataset. Accepted types are:
+                   ['h', 'm', 'l', 'n'] - high, medium, low, none/explainable.
+        
+    Returns
+    ----------
+        Barplot distribution of predefined stimulants,
+        Barplot distribution of predefined importance,
+        DataFrame with information about each column.
+    """
+    
+    
     color_background = '#F5F5F5'
     color_gridlines = '#DCDCDC'
     colors_in_use = [
@@ -115,6 +165,38 @@ def quantitative_eda(df, stim_vec, imp_vec):
     display(data_business_eda.transpose())
 
 def show_plots(df, y_name, vars_subset=None, what=None):
+    """Creates a dictionary of lists, where each list element is a single plot.
+    
+    Each element of dictionary represent a certain category of plots. Availablee options are:
+        - 'cat_dist' : list of barplots for each categorical variable,
+        - 'cat_dist2' : list of barplots for each unique combinations of 2 categorical variables,
+        - 'num_dist' : list of violin+density+histogram plot for numerical each variable,
+        - 'num_dist2' : list of scatterplots for each unique combinations of 2 numerical variables,
+        - 'cat_dist_vs_y' : list of plots (bar or violin) for each categorical variable against explainable
+                            variable,
+        - 'num_dist_vs_y' : list of plots (scatter or violin) for each numerical variable against explainable
+                            variable,
+        - 'mix_violin' : list of violin plots for each unique combinations of 1 categorical and 1 numerical
+                         variables.
+        
+        To show all the plots, use for loop:
+        for i in plots['num_dist']:
+            i.show()
+    
+    Parameters
+    ----------
+        df : dataset,
+        y_name : explainable variable,
+        vars_subset: selected variable(s) from the dataset besides explainable variable, default=None (all)
+        what: which types of lists should be returned, 
+              default=['str_dist', 'num_dist', 'str_dist_vs_y', 'num_dist_vs_y']. Available options are:
+              ['str_dist', 'str_dist2', 'num_dist', 'num_dist2', 
+               'str_dist_vs_y', 'num_dist_vs_y', 'mix_violin'].
+
+    Returns
+    ----------
+        A dictionary of lists.
+    """
     
     y = df.loc[:, y_name].to_numpy()
     df = df.drop(columns=[y_name])
@@ -337,10 +419,37 @@ def show_plots(df, y_name, vars_subset=None, what=None):
     return(final_dict)
 
 
-def show_plots_single(df, y_name, vars_subset=None):
+def show_plots_single(df, y_name, vars_subset=None,
+                      ncols=3, h_space=0.02, p_height=1000, f_size=8):
+    """Creates plots of variables' distribution and distribution against explainable variable.
+    
+    Available plots are:
+    - 'cat_single' : all categorical columns on the same grid,
+    - 'cat_split' : all categorical columns on different grids,
+    - 'num_single' : all numerical columns on the same grid,
+    - 'num_split' : all numerical columns on different grids,
+    - 'cat_vs_y_single' : all categorical columns against explainable variable on the same grid,
+    - 'cat_vs_y_split' : all categorical columns against explainable variable on different grids,
+    - 'num_vs_y_single' : all numerical columns against explainable variable on the same grid,
+    - 'num_vs_y_split' : all numerical columns against explainable variable on different grids.
+    
+    Parameters
+    ----------
+        df : dataset,
+        y_name : explainable variable,
+        vars_subset: selected variable(s) from the dataset besides explainable variable, default=None (all),
+        ncols : number of plot's columns, default=3,
+        h_space : spacing between subplots, default=0.02,
+        p_height : height of single plot, default=1000,
+        f_size : yaxis title's font size of single plot, default=8.
+
+    Returns
+    ----------
+        A dictionary of plots.
+    """
     
     y = df.loc[:, y_name].to_numpy()
-    df = df.drop(columns=[y_name])
+    #df = df.drop(columns=[y_name])
     
     if vars_subset is None:
         vars_subset = df.columns.tolist()
@@ -351,7 +460,13 @@ def show_plots_single(df, y_name, vars_subset=None):
         '#2C3E50', '#537EA2', '#858F84', '#42A593',
         '#873E23', '#CFD1A1', '#6A744F', '#BDBDC5',
         '#7EA253', '#EDB676', '#C26D40'
-    ]+px.colors.qualitative.Safe
+    ]+(px.colors.qualitative.Safe+
+       px.colors.qualitative.Pastel+
+       px.colors.qualitative.Prism+
+       px.colors.qualitative.Antique+
+       px.colors.qualitative.Vivid+
+       px.colors.qualitative.Plotly
+      )
     
     dtypes_num = ['int64', 'int32', 'int16', 'float64', 'float32', 'float16']
     dtypes_str = ['object', 'category']
@@ -364,40 +479,47 @@ def show_plots_single(df, y_name, vars_subset=None):
     for i in range(0, len(vars_str)):
         fig.add_trace(go.Histogram(x=df.loc[:, vars_str[i]], 
                                    name=vars_str[i],
+                                   marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
                                    showlegend=True))
-        fig.update_traces(
-            marker_color=colors_in_use,
-            marker_line_width=1.5,
-            opacity=0.8
-        )
         fig.update_layout(
             xaxis_type='category',
             xaxis_title='',
             paper_bgcolor=color_background,
             plot_bgcolor=color_background
         )
-        fig.update_yaxes(gridcolor=color_gridlines)
-        fig.update_xaxes(linecolor=color_gridlines)
+        
+    fig.update_yaxes(gridcolor=color_gridlines)
+    fig.update_xaxes(linecolor=color_gridlines)
+    fig.update_traces(
+        #marker_color=colors_in_use,
+        marker_line_width=1.5,
+        opacity=0.8
+    )
     
-    if len(fig['data']) % 4 == 0:
-        dim_1 = int(len(fig['data'])/4)
+    if len(fig['data']) % ncols == 0:
+        dim_1 = int(len(fig['data'])/ncols)
     else:
-        dim_1 = int(len(fig['data'])/4)+1
-    dim_2 = 4
+        dim_1 = int(len(fig['data'])/ncols)+1
+    dim_2 = ncols
     
-    fig2 = make_subplots(rows=dim_1, cols=dim_2)
+    fig2 = make_subplots(rows=dim_1, cols=dim_2, horizontal_spacing=h_space)
     
     for i in range(dim_2):
         for j in range(dim_1):
             if j+(i*dim_1) >= len(fig['data']):
                 continue
             fig2.append_trace(fig['data'][j+(i*dim_1)], j+1, i+1)
+            fig2.update_yaxes(title_text=vars_str[j+(i*dim_1)], row=j+1, col=i+1)
+            fig2.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig2.update_yaxes(title_font_color='black', row=j+1, col=i+1)
         
-        fig2.update_layout(
-            xaxis_type='category',
-            paper_bgcolor=color_background,
-            plot_bgcolor=color_background
-        )
+    fig2.update_layout(
+        xaxis_type='category',
+        height=p_height,
+        paper_bgcolor=color_background,
+        plot_bgcolor=color_background#,
+        #yaxis=dict(font=dict(size=6))
+    )
     fig2.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
     fig2.update_xaxes(linecolor=color_gridlines, showticklabels=False)
     
@@ -407,7 +529,8 @@ def show_plots_single(df, y_name, vars_subset=None):
     for i in range(0, len(vars_num)):
         fig3.add_trace(go.Violin(
             y=df.loc[:, vars_num[i]], box_visible=True, meanline_visible=True,
-            marker_color=colors_in_use[0], marker_line_color='rgb(8,48,107)',
+            marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
+            marker_line_color='rgb(8,48,107)',
             marker_line_width=1.5, opacity=0.8, 
             name=vars_num[i], showlegend=True
         ))
@@ -421,23 +544,27 @@ def show_plots_single(df, y_name, vars_subset=None):
         fig3.update_xaxes(linecolor=color_gridlines)
     
     
-    if len(vars_num) % 4 == 0:
-        dim_1 = int(len(fig3['data'])/4)
+    if len(vars_num) % ncols == 0:
+        dim_1 = int(len(fig3['data'])/ncols)
     else:
-        dim_1 = int(len(fig3['data'])/4)+1
-    dim_2 = 4
+        dim_1 = int(len(fig3['data'])/ncols)+1
+    dim_2 = ncols
     
-    fig4 = make_subplots(rows=dim_1, cols=dim_2)
+    fig4 = make_subplots(rows=dim_1, cols=dim_2, horizontal_spacing=h_space)
     for i in range(dim_2):
         for j in range(dim_1):
             if j+(i*dim_1) >= len(fig3['data']):
                 continue
             fig4.append_trace(fig3['data'][j+(i*dim_1)], j+1, i+1)
+            fig4.update_yaxes(title_text=vars_num[j+(i*dim_1)], row=j+1, col=i+1)
+            fig4.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig4.update_yaxes(title_font_color='black', row=j+1, col=i+1)
         
-        fig4.update_layout(
-            paper_bgcolor=color_background,
-            plot_bgcolor=color_background
-        )
+    fig4.update_layout(
+        paper_bgcolor=color_background,
+        height=p_height,
+        plot_bgcolor=color_background
+    )
     fig4.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
     fig4.update_xaxes(linecolor=color_gridlines, showticklabels=False)
     
@@ -449,6 +576,7 @@ def show_plots_single(df, y_name, vars_subset=None):
             fig5.add_trace(go.Violin(y=y, x=df.loc[:, vars_str[i]],
                                      box_visible=True, meanline_visible=True,
                                      name=vars_str[i],
+                                     marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
                                      marker_line_width=1.5, opacity=0.8,
                                      marker_line_color='rgb(8,48,107)'))
             fig5.update_layout(xaxis_title=y_name,
@@ -461,7 +589,8 @@ def show_plots_single(df, y_name, vars_subset=None):
         for i in range(0, len(vars_str)):
             fig5.add_trace(go.Histogram(
                 y=y, x=df.loc[:, vars_str[i]], 
-                name=vars_str[i], histfunc="count", 
+                name=vars_str[i], histfunc="count",
+                marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
                 showlegend=True, marker_line_width=1.5,
                 opacity=0.8))
             fig5.update_layout(
@@ -474,11 +603,11 @@ def show_plots_single(df, y_name, vars_subset=None):
             fig5.update_xaxes(linecolor=color_gridlines)
     
     
-    if len(fig5['data']) % 4 == 0:
-        dim_1 = int(len(fig5['data'])/4)
+    if len(fig5['data']) % ncols == 0:
+        dim_1 = int(len(fig5['data'])/ncols)
     else:
-        dim_1 = int(len(fig5['data'])/4)+1
-    dim_2 = 4
+        dim_1 = int(len(fig5['data'])/ncols)+1
+    dim_2 = ncols
     
     fig6 = make_subplots(rows=dim_1, cols=dim_2)
     
@@ -487,12 +616,16 @@ def show_plots_single(df, y_name, vars_subset=None):
             if j+(i*dim_1) >= len(fig5['data']):
                 continue
             fig6.append_trace(fig5['data'][j+(i*dim_1)], j+1, i+1)
+            fig6.update_yaxes(title_text=vars_str[j+(i*dim_1)], row=j+1, col=i+1)
+            fig6.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig6.update_yaxes(title_font_color='black', row=j+1, col=i+1)
         
-        fig6.update_layout(
-            xaxis_type='category',
-            paper_bgcolor=color_background,
-            plot_bgcolor=color_background
-        )
+    fig6.update_layout(
+        xaxis_type='category',
+        height=p_height,
+        paper_bgcolor=color_background,
+        plot_bgcolor=color_background
+    )
     fig6.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
     fig6.update_xaxes(linecolor=color_gridlines, showticklabels=False)
     
@@ -502,7 +635,8 @@ def show_plots_single(df, y_name, vars_subset=None):
         for i in range(0, len(vars_num)):
             fig7.add_trace(go.Scatter(
                 x=df[vars_num[i]], y=y,
-                opacity=0.8, name=vars_num[i], mode='markers'
+                opacity=0.8, name=vars_num[i], mode='markers',
+                marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
             ))
             fig7.update_layout(xaxis_title='',
                                yaxis_title=vars_num[i],
@@ -516,6 +650,7 @@ def show_plots_single(df, y_name, vars_subset=None):
             fig7.add_trace(go.Violin(x=y, y=df.loc[:, vars_num[i]],
                                      box_visible=True, meanline_visible=True,
                                      name=vars_str[i],
+                                     marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
                                      marker_line_width=1.5, opacity=0.8,
                                      marker_line_color='rgb(8,48,107)'))
             fig7.update_layout(xaxis_title=y_name,
@@ -526,11 +661,11 @@ def show_plots_single(df, y_name, vars_subset=None):
             fig7.update_xaxes(linecolor=color_gridlines)
             
             
-    if len(vars_num) % 4 == 0:
-        dim_1 = int(len(fig7['data'])/4)
+    if len(vars_num) % ncols == 0:
+        dim_1 = int(len(fig7['data'])/ncols)
     else:
-        dim_1 = int(len(fig7['data'])/4)+1
-    dim_2 = 4
+        dim_1 = int(len(fig7['data'])/ncols)+1
+    dim_2 = ncols
     
     fig8 = make_subplots(rows=dim_1, cols=dim_2)
     for i in range(dim_2):
@@ -538,11 +673,15 @@ def show_plots_single(df, y_name, vars_subset=None):
             if j+(i*dim_1) >= len(fig7['data']):
                 continue
             fig8.append_trace(fig7['data'][j+(i*dim_1)], j+1, i+1)
+            fig8.update_yaxes(title_text=vars_num[j+(i*dim_1)], row=j+1, col=i+1)
+            fig8.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig8.update_yaxes(title_font_color='black', row=j+1, col=i+1)
         
-        fig8.update_layout(
-            paper_bgcolor=color_background,
-            plot_bgcolor=color_background
-        )
+    fig8.update_layout(
+        height=p_height,
+        paper_bgcolor=color_background,
+        plot_bgcolor=color_background
+    )
     fig8.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
     fig8.update_xaxes(linecolor=color_gridlines, showticklabels=False)
 
@@ -560,16 +699,30 @@ def show_plots_single(df, y_name, vars_subset=None):
     
     return final_dict
 
-def show_outliers(X, n_std=3):
+def show_outliers(df, n_std=3):
+    """Creates a DataFrame, where each column shows upper boudaries, from which observations for
+    a specified column are considered outliers, and number of outliers.
+    
+    Parameters
+    ----------
+        df : dataset,
+        n_std : number of standard deviations from the mean as criterion for an observation being
+                considered outlier.
+
+    Returns
+    ----------
+        DataFrame of upper outliers bounds and counts.
+    """
+    
     outliers_dict = {}
     
-    for col in X.columns.to_list():
-        mean = X[col].mean()
-        sd = X[col].std()
-        X_filtered = X[X[col] > mean+(n_std*sd)]
+    for col in df.columns.to_list():
+        mean = df[col].mean()
+        sd = df[col].std()
+        X_filtered = df[df[col] > mean+(n_std*sd)]
         outliers_dict[col] = [
-            X.shape[0]-X[(X[col] <= mean+(n_std*sd))].shape[0],
-            round((X.shape[0]-X[(X[col] <= mean+(n_std*sd))].shape[0])/X.shape[0],3),
+            df.shape[0]-df[(df[col] <= mean+(n_std*sd))].shape[0],
+            round((df.shape[0]-df[(df[col] <= mean+(n_std*sd))].shape[0])/df.shape[0], 3),
             X_filtered[col].min()
         ]
         

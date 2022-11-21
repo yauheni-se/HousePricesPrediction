@@ -13,6 +13,26 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 
 def feature_selection(X, y, max_n_features=11):
+    """Shows selected features according to different selection methods.
+    
+    Available selection methods are:
+       - FStat : select number of most important variables according to the F statistic,
+       - Ridge : select number of most important variables according to the t statistic from RidgeCV model,
+       - RF : feature importance from the basic Random Forest model,
+       - PermutatedRF : feature importance from the basic Random Forest model trained on 2-folds CV,
+       - SHAP : .
+    
+    Parameters
+    ----------
+        X : features dataset,
+        y : explainable variable,
+        max_n_features : number of features to select.
+        
+    Returns
+    ----------
+        DataFrame with lists of columns selected in each method.
+    """
+    
     selector_knn = SelectKBest(f_regression, k=max_n_features)
     selector_knn.fit(X,y)
 
@@ -49,7 +69,7 @@ def feature_selection(X, y, max_n_features=11):
     )).sort_values('imp', ascending=False).head(max_n_features).col.to_list()
     
     imp_dict = pd.DataFrame(dict(
-        KNN = selector_knn.get_feature_names_out().tolist(),
+        FStat = selector_knn.get_feature_names_out().tolist(),
         Ridge = feature_names[sfm.get_support()],
         RF = forest_importances.sort_values(ascending=False).head(max_n_features).index.to_list(),
         PermutatedRF = perm_importance,
@@ -57,15 +77,36 @@ def feature_selection(X, y, max_n_features=11):
     ))
     return imp_dict
 
-def show_model_ga_search_cv(model_grid, classifier, name, X, y,
+def show_model_ga_search_cv(model_grid, model, name, X, y,
                             problem_type='classification', cv=3, popsize=20, generations=30):
+    """Shows best hyperparameters for a selected model through generic algoritm search.
+       
+    Parameters
+    ----------
+        model_grid : dictionary for predefined hyperparameters' ranges,
+        model : selected model,
+        name : name of the model,
+        X : features dataset
+        y : explainable variable,
+        problem_type : 'classification' or 'regression', default='classification'.
+                        In case of regression, RMSE metric will be used.
+        cv : number of CV folds,
+        popsize : initial population size (number of models),
+        generations : number of generations (iterations).
+        
+    Returns
+    ----------
+        Dictionary of best hyperparameters,
+        Models score.
+    """
+    
     if problem_type=='classification':
         scoring = 'accuracy'
     else:
         scoring = 'neg_root_mean_squared_error'
     
     model_grid_search_cv = GASearchCV(
-        estimator=classifier,
+        estimator=model,
         cv=cv,
         scoring=scoring,
         population_size=popsize,
@@ -86,29 +127,34 @@ def show_model_ga_search_cv(model_grid, classifier, name, X, y,
     print("Best params", model_grid_search_cv.best_params_, "\n")
     
 def show_best_feature_set(features_original, features_centroids, features_selected, y, 
-                          p_type='classification'):
+                          problem_type='classification'):
     model_grid_ga_rf = {
         'max_depth': Integer(10, 80),
         'max_features': Integer(1, 7),
         'min_samples_leaf': Integer(1, 7),
         'min_samples_split': Integer(2, 10),
-        'n_estimators': Integer(25, 500)#,
+        'n_estimators': Integer(25, 500)
     }
     
     print('Original:')
     show_model_ga_search_cv(
         model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_original, y,
-        p_type, generations=3
+        problem_type, generations=3
     )
     
     print('Centroids:')
     show_model_ga_search_cv(
         model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_centroids, y,
-        p_type, generations=3
+        problem_type, generations=3
     )
     
     print('Features selected:')
     show_model_ga_search_cv(
         model_grid_ga_rf, RandomForestRegressor(), 'random_forest', features_selected, y,
-        p_type, generations=3
+        problem_type, generations=3
     )
+    
+    #print('Expert-selected:')
+    #print('FCA')
+    #print('FCA selected')
+    #print('Centroids selected')
