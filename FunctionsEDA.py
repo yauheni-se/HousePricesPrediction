@@ -30,7 +30,7 @@ def show_data(df, what=None):
     """
     
     if what is None:
-        what = ['head', 'shapes', 'col_types', 'nans', 'stats', 'unique_vals']
+        what = ['head', 'shapes', 'col_types', 'nans', 'infs', 'stats', 'unique_vals']
     
     if 'head' in what:
         print('Head:')
@@ -50,7 +50,10 @@ def show_data(df, what=None):
         
     if 'nans' in what:
         print('NaNs:')
-        display(pd.DataFrame(df.isna().sum()).transpose())     
+        display(pd.DataFrame(df.isna().sum()).transpose())
+    if 'infs' in what:
+        print('\nInfs:')
+        display(pd.DataFrame(df.isin([np.inf, -np.inf]).sum()).transpose())
         
     if 'stats' in what:
         print('\nStatistics:')
@@ -526,6 +529,8 @@ def show_plots_single(df, y_name, vars_subset=None,
     
     # single plot, all numerical ############################################################
     fig3 = go.Figure()
+    fig3_hist = go.Figure()
+    fig3_rid = go.Figure()
     for i in range(0, len(vars_num)):
         fig3.add_trace(go.Violin(
             y=df.loc[:, vars_num[i]], box_visible=True, meanline_visible=True,
@@ -542,6 +547,34 @@ def show_plots_single(df, y_name, vars_subset=None,
         )
         fig3.update_yaxes(gridcolor=color_gridlines)
         fig3.update_xaxes(linecolor=color_gridlines)
+        
+        fig_tmp = ff.create_distplot(
+            hist_data=[df[vars_num[i]].dropna()],
+            group_labels=[vars_num[i]],
+            show_hist=True,
+            show_rug=False
+        )
+        
+        fig3_hist.add_trace(go.Histogram(
+            fig_tmp['data'][0],
+            marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
+            marker_line_color='rgb(8,48,107)',
+            marker_line_width=1.5, opacity=0.8,
+            name=vars_num[i], showlegend=True
+        ))
+        fig3_hist.update_yaxes(gridcolor=color_gridlines)
+        fig3_hist.update_xaxes(linecolor=color_gridlines)
+        
+        fig3_rid.add_trace(go.Scatter(
+            fig_tmp['data'][1],
+            marker=dict(color=colors_in_use[min(i, len(colors_in_use))]),
+            marker_line_color='rgb(8,48,107)',
+            marker_line_width=1.5, opacity=0.8,
+            name=vars_num[i], showlegend=True
+        ))
+        fig3_rid.update_yaxes(gridcolor=color_gridlines)
+        fig3_rid.update_xaxes(linecolor=color_gridlines)
+        
     
     
     if len(vars_num) % ncols == 0:
@@ -551,6 +584,8 @@ def show_plots_single(df, y_name, vars_subset=None,
     dim_2 = ncols
     
     fig4 = make_subplots(rows=dim_1, cols=dim_2, horizontal_spacing=h_space)
+    fig4_hist = make_subplots(rows=dim_1, cols=dim_2, horizontal_spacing=h_space)
+    fig4_rid = make_subplots(rows=dim_1, cols=dim_2, horizontal_spacing=h_space)
     for i in range(dim_2):
         for j in range(dim_1):
             if j+(i*dim_1) >= len(fig3['data']):
@@ -559,6 +594,16 @@ def show_plots_single(df, y_name, vars_subset=None,
             fig4.update_yaxes(title_text=vars_num[j+(i*dim_1)], row=j+1, col=i+1)
             fig4.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
             fig4.update_yaxes(title_font_color='black', row=j+1, col=i+1)
+            
+            fig4_hist.append_trace(fig3_hist['data'][j+(i*dim_1)], j+1, i+1)
+            fig4_hist.update_yaxes(title_text=vars_num[j+(i*dim_1)], row=j+1, col=i+1)
+            fig4_hist.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig4_hist.update_yaxes(title_font_color='black', row=j+1, col=i+1)
+            
+            fig4_rid.append_trace(fig3_rid['data'][j+(i*dim_1)], j+1, i+1)
+            fig4_rid.update_yaxes(title_text=vars_num[j+(i*dim_1)], row=j+1, col=i+1)
+            fig4_rid.update_yaxes(title_font_size=f_size, row=j+1, col=i+1)
+            fig4_rid.update_yaxes(title_font_color='black', row=j+1, col=i+1)
         
     fig4.update_layout(
         paper_bgcolor=color_background,
@@ -567,6 +612,23 @@ def show_plots_single(df, y_name, vars_subset=None,
     )
     fig4.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
     fig4.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
+    fig4_hist.update_layout(
+        paper_bgcolor=color_background,
+        height=p_height,
+        plot_bgcolor=color_background
+    )
+    fig4_hist.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig4_hist.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
+    fig4_rid.update_layout(
+        paper_bgcolor=color_background,
+        height=p_height,
+        plot_bgcolor=color_background
+    )
+    fig4_rid.update_yaxes(gridcolor=color_gridlines, showticklabels=False)
+    fig4_rid.update_xaxes(linecolor=color_gridlines, showticklabels=False)
+    
     
     
     # all categorical against y ##############################################################
@@ -690,7 +752,11 @@ def show_plots_single(df, y_name, vars_subset=None,
         cat_single = fig,
         cat_split = fig2,
         num_single = fig3,
+        num_single_hist = fig3_hist,
+        num_single_rid = fig3_rid,
         num_split = fig4,
+        num_split_hist = fig4_hist,
+        num_split_rid = fig4_rid,
         cat_vs_y_single = fig5,
         cat_vs_y_split = fig6,
         num_vs_y_single = fig7,
