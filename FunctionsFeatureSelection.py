@@ -1,6 +1,13 @@
 import pandas as pd
 import numpy as np
 
+import itertools
+import math
+import collections
+from tqdm import tqdm
+from joblib import Parallel, delayed
+from operator import itemgetter
+
 from sklearn.inspection import permutation_importance
 import shap
 from sklearn.feature_selection import (
@@ -11,6 +18,61 @@ from sklearn_genetic.space import Continuous, Categorical, Integer
 from sklearn.linear_model import RidgeCV
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
+
+
+def hellwig(correlation_matrix, dependent_var_correlation_matrix, var_combinations):
+    """Helper function from https://github.com/Yard1/pyhellwig/blob/master/hellwig.py.
+    """
+    best_info = []
+    for combination in tqdm(var_combinations):
+        h = Parallel(n_jobs=-1)(delayed(hellwig_singular)(
+            correlation_matrix, dependent_var_correlation_matrix, c) for c in combination)
+        h = max(h,key=itemgetter(1))
+        best_info.append(h)
+    best_info = max(best_info,key=itemgetter(1))
+    return best_info
+
+
+def hellwig_singular(correlation_matrix, dependent_var_correlation_matrix, var_combination):
+    """Helper function from https://github.com/Yard1/pyhellwig/blob/master/hellwig.py.
+    """
+    h = 0
+    var_combination = list(var_combination)
+    denominator = 0
+    for var in var_combination:
+        denominator += abs(correlation_matrix[var_combination[0]][var])
+    for var in var_combination:
+        h += (dependent_var_correlation_matrix[var]**2)/denominator
+    return (var_combination, h)
+
+
+def combination(iterable, n):
+    """Helper function from https://github.com/Yard1/pyhellwig/blob/master/hellwig.py.
+    """
+    return itertools.combinations(iterable, n)
+
+
+def hellwig_selection(df, y):
+    """Rewritten Hellwig algorithm from https://github.com/Yard1/pyhellwig/blob/master/hellwig.py.
+    """
+    dependent_df = df[y]
+    independent_df = df.drop(y, axis=1)
+    independent_vars = independent_df.keys()
+    min_length = 1
+    max_length = len(independent_vars)
+    
+    yx_corrs = collections.OrderedDict()
+    for var in independent_vars:
+        yx_corrs[var] = df[y].corr(df[var])
+    combinations = []
+    combinations = Parallel(n_jobs=-1)(
+        delayed(combination)(independent_vars, i) for i in range(
+            min_length, len(independent_vars)+1 if max_length < 1 else max_length
+        )
+    )
+    best_info = hellwig(independent_df.corr(), yx_corrs, combinations)
+    return dict(variables=best_info[0], ic=best_info[1])
+
 
 def feature_selection(X, y, max_n_features=11):
     """Shows selected features according to different selection methods.

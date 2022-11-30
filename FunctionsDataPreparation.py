@@ -10,6 +10,75 @@ from IPython.display import display
 from fitter import Fitter, get_common_distributions, get_distributions
 from scipy import stats
 
+def prepare_data(df, y, vars_subset=None, what=None):
+    """Performs the most handful data preparation operations. 
+    
+    Parameters
+    ----------
+        df : dataset,
+        y : name of the explainable variable,
+        vars_subset : selected variable(s) from the dataset and the explainable variable,
+                      default=None (all)
+        what : which type of preparation to perform,
+               default=['dummify', 'standardize', 'stimulate'].
+               Available options are:
+               - 'dummify' : convert categorical features to series of dummies,
+                             while dropping the most frequent category
+               - 'standardize' : apply standartization to non-binary columns,
+               - 'stimulate' : change the sign of correlation with y variable.
+                               For binary columns, values switch places (0 becames 1, 1 becames 0).
+                               For numeric columns, values are multiplied by -1.
+        
+    Returns
+    ----------
+        Prepared dataset.
+    """
+    if what is None:
+        what = ['dummify', 'standardize', 'stimulate']
+    
+    if vars_subset is None:
+        vars_subset = df.columns.tolist()
+        
+    dtypes_num = ['int64', 'int32', 'int16', 'float64', 'float32', 'float16']
+    dtypes_str = ['object', 'category']
+    vars_num = df.loc[:, vars_subset].select_dtypes(include=dtypes_num).columns
+    vars_str = df.loc[:, vars_subset].select_dtypes(include=dtypes_str).columns
+
+    binary_cols = df.loc[:, vars_num].apply(lambda x: x.unique().tolist() in [[1, 0], [0,1]])
+    binary_cols = binary_cols[binary_cols].index.to_list()
+
+    non_binary_cols = df.loc[:, vars_num].apply(lambda x: x.unique().tolist() not in [[1, 0], [0,1]])
+    non_binary_cols = non_binary_cols[non_binary_cols].index.to_list()
+    vars_num = df.loc[:, vars_num].loc[:, non_binary_cols].columns
+    
+    if 'dummify' in what:
+        vars_to_drop = []
+        for i in vars_str:
+            vars_to_drop.append(i+'_'+df[i].value_counts().index[0])
+        df = pd.get_dummies(df, columns=vars_str, prefix=vars_str)
+        df = df.drop(columns=vars_to_drop)
+        
+    if 'standardize' in what:
+        df[vars_num] = df[vars_num].apply(lambda x: stats.zscore(x))
+        
+    if 'stimulate' in what:
+        df_corr = df.corr()[y].to_frame(name='corr').reset_index()
+        vars_to_stimulate = df_corr.loc[df_corr['corr']<0, :]['index'].to_list()
+    
+        if len(vars_to_stimulate) != 0:
+            vars_to_stimulate_bin = [x for x in vars_to_stimulate if x in binary_cols]
+            vars_to_stimulate_norm = [x for x in vars_to_stimulate if x not in binary_cols]
+        
+            if len(vars_to_stimulate_norm) != 0:
+                df[vars_to_stimulate_norm] = df[vars_to_stimulate_norm].apply(lambda x: -x)
+            if len(vars_to_stimulate_norm) != 0:
+                df[vars_to_stimulate_bin] = df[vars_to_stimulate_bin].apply(
+                    lambda x: x.replace({0 : 2, 1 : 3}).replace({2 : 1, 3 : 0})
+                )
+                print('binary values for ', vars_to_stimulate_bin, ' columns were switched')
+    return df
+
+
 def do_call(what, *args, **kwargs):
     """Helper function to call scipy's distributions in an R's manner (from string).
     
